@@ -1,0 +1,17 @@
+{
+    "name": "Flexus.Serialization",
+    "rootNamespace": "",
+    "references": [
+        "Unity.Serialization",
+        "Unity.Mathematics"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using Newtonsoft.Json;
-using Unity.Properties;
 using UnityEngine;
 
 #if UNITY_EDITOR
@@ -12,12 +11,17 @@ namespace Flexus.Serialization
     [JsonObject(MemberSerialization.OptIn)]
     public abstract class SerializableScriptableObject : ScriptableObject, ISerializable, ISerializationCallbackReceiver
     {
-        [SerializeField, HideInInspector, DontCreateProperty, JsonIgnore]
+        [SerializeField, HideInInspector, JsonIgnore]
         protected string _serializationData;
         
-        [SerializeField, HideInInspector, DontCreateProperty, JsonIgnore] 
+        [SerializeField, HideInInspector, JsonIgnore] 
         protected List<Object> _objects = new();
 
+#if UNITY_EDITOR
+        [SerializeField, HideInInspector, JsonIgnore]
+        protected bool _isDirty;
+#endif
+        
         public virtual string SerializationData => _serializationData;
         
         void ISerializationCallbackReceiver.OnBeforeSerialize()
@@ -25,13 +29,16 @@ namespace Flexus.Serialization
             OnBeforeSerialize();
             
 #if UNITY_EDITOR
-            _objects.Clear();
-#endif
-            
-            _serializationData = SerializationUtility.Serialize(this, _objects);
+            if (_isDirty)
+            {
+                _objects.Clear();
 
-#if UNITY_EDITOR
-            EditorUtility.SetDirty(this);
+                _serializationData = SerializationUtility.Serialize(this, _objects);
+                
+                _isDirty = false;
+
+                EditorUtility.SetDirty(this);
+            }
 #endif
         }
 
@@ -41,15 +48,13 @@ namespace Flexus.Serialization
             {
                 if (!string.IsNullOrEmpty(_serializationData))
                 {
-                    var instance = this;
-                    
-                    SerializationUtility.Override(_serializationData, ref instance, _objects);
+                    SerializationUtility.Override(_serializationData, this, _objects);
                 }
             }
             catch
             {
 #if !UNITY_EDITOR
-               Debug.LogError($"Can't populate object {gameObject.name}", this);
+               Debug.LogError($"Can't populate object {name}", this);
 #endif
             }
             
@@ -65,6 +70,11 @@ namespace Flexus.Serialization
         }
         
 #if UNITY_EDITOR
+        public void SetDirty(bool value)
+        {
+            _isDirty = value;
+        }
+        
         public void Apply(string serializationData)
         {
             _serializationData = serializationData;
@@ -73,9 +83,7 @@ namespace Flexus.Serialization
             {
                 if (!string.IsNullOrEmpty(_serializationData))
                 {
-                    var instance = this;
-                    
-                    SerializationUtility.Override(_serializationData, ref instance, _objects);
+                    SerializationUtility.Override(_serializationData, this, _objects);
                 }
             }
             catch

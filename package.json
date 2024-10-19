@@ -2,13 +2,11 @@
   "name": "com.flexus.serialization",
   "displayName": "FLEXUS Serialization",
   "description": "Custom serialization logic for Unity",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "unity": "2020.3",
   "author": "Idegeron (https://github.com/Idegeron)",
   "homepage": "https://github.com/Idegeron/Tri-Inspector-Flexus-Edition#readme",
   "dependencies": {
-    "com.unity.nuget.newtonsoft-json": "3.2.1",
-    "com.unity.serialization": "3.1.2",
-    "com.unity.mathematics": "1.2.6"
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
   }
 }

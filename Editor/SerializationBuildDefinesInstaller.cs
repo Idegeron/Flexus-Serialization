@@ -1,4 +1,5 @@
-﻿using UnityEditor;
+﻿#if UNITY_EDITOR
+using UnityEditor;
 
 namespace Flexus.Serialization
 {
@@ -20,3 +21,4 @@ namespace Flexus.Serialization
         }
     }
 }
+#endif

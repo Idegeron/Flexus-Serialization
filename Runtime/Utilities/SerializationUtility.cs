@@ -2,111 +2,51 @@
 using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Unity.Mathematics;
-using Unity.Serialization.Json;
-using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace Flexus.Serialization
 {
     public static class SerializationUtility
     {
-        private static bool Initialized;
-        
-        private static SerializationUnityObjectAdapter SerializationUnityObjectAdapter;
-        
-        private static List<IJsonAdapter> JsonAdapters;
-        
-        private static SerializedObjectReaderConfiguration GetDefaultConfigurationForString(string json, JsonSerializationParameters parameters = default)
+        private static FlexusConverter FlexusConverter;
+        private static JsonSerializerSettings JsonSerializerSettings;
+
+        static SerializationUtility()
         {
-            var configuration = SerializedObjectReaderConfiguration.Default;
+            FlexusConverter = new FlexusConverter();
 
-            configuration.UseReadAsync = false;
-            configuration.ValidationType = parameters.DisableValidation ? JsonValidationType.None : parameters.Simplified ? JsonValidationType.Simple : JsonValidationType.Standard;
-            configuration.BlockBufferSize = math.max(json.Length * sizeof(char), 16);
-            configuration.TokenBufferSize = math.max(json.Length / 2, 16);
-            configuration.OutputBufferSize = math.max(json.Length * sizeof(char), 16);
-            configuration.StripStringEscapeCharacters = parameters.StringEscapeHandling;
-
-            return configuration;
-        }
-
-        private static void Initialize()
-        {
-            if (!Initialized)
+            JsonSerializerSettings = new JsonSerializerSettings()
             {
-                Initialized = true;
-
-                SerializationUnityObjectAdapter = new SerializationUnityObjectAdapter();
-                
-                JsonAdapters = new List<IJsonAdapter>() { SerializationUnityObjectAdapter, new SerializationTypeAdapter() };
-            }
-        }
-        
-        public static string Serialize<T>(T value, IList<Object> objectReferenceList = null)
-        {
-            Initialize();
-            
-            SerializationUnityObjectAdapter.ObjectReferenceList = objectReferenceList;
-            
-            return JsonSerialization.ToJson(value, new JsonSerializationParameters()
-            {
-                DisableRootAdapters = true,
-                Minified = true,
-                UserDefinedAdapters = JsonAdapters
-            });
-        }
-
-        public static T Deserialize<T>(string data, IList<Object> objectReferenceList = null)
-        {
-            Initialize();
-            
-            SerializationUnityObjectAdapter.ObjectReferenceList = objectReferenceList;
-            
-            unsafe
-            {
-                fixed (char* buffer = data)
+                Converters = new List<JsonConverter>()
                 {
-                    var jsonSerializationParameters = new JsonSerializationParameters()
-                    {
-                        DisableRootAdapters = true,
-                        Minified = true,
-                        UserDefinedAdapters = JsonAdapters
-                    };
-                    
-                    using var reader = new SerializedObjectReader(buffer, data.Length,
-                        GetDefaultConfigurationForString(data, jsonSerializationParameters));
-                    
-                    reader.Read(out var view);
-                    
-                    return JsonSerialization.FromJson<T>(view, jsonSerializationParameters);
-                }
-            }
+                    new TypeConverter(),
+                    FlexusConverter,
+                },
+                TypeNameHandling = TypeNameHandling.All,
+                TypeNameAssemblyFormatHandling = TypeNameAssemblyFormatHandling.Simple,
+                ReferenceLoopHandling = ReferenceLoopHandling.Serialize
+            };
+        }
+        
+        public static string Serialize<T>(T value, IList<Object> internalObjects)
+        {
+            FlexusConverter.InternalObjects = internalObjects;
+
+            return JsonConvert.SerializeObject(value, JsonSerializerSettings);
         }
 
-        public static void Override<T>(string data, ref T instance, IList<Object> objectReferenceList = null)
+        public static T Deserialize<T>(string data, IList<Object> internalObjects)
         {
-            Initialize();
+            FlexusConverter.InternalObjects = internalObjects;
+
+            return JsonConvert.DeserializeObject<T>(data, JsonSerializerSettings);
+        }
+
+        public static void Override<T>(string data, T instance, IList<Object> internalObjects)
+        {
+            FlexusConverter.InternalObjects = internalObjects;
             
-            SerializationUnityObjectAdapter.ObjectReferenceList = objectReferenceList;
-            
-            unsafe
-            {
-                fixed (char* buffer = data)
-                {
-                    var jsonSerializationParameters = new JsonSerializationParameters()
-                    {
-                        DisableRootAdapters = true,
-                        Minified = true,
-                        UserDefinedAdapters = JsonAdapters
-                    };
-                    
-                    using var reader = new SerializedObjectReader(buffer, data.Length, GetDefaultConfigurationForString(data, jsonSerializationParameters));
-                   
-                    reader.Read(out var view);
-                    
-                    JsonSerialization.FromJsonOverride(view, ref instance, jsonSerializationParameters);
-                }
-            }
+            JsonConvert.PopulateObject(data, instance, JsonSerializerSettings);
         }
         
 #if UNITY_EDITOR
@@ -189,10 +129,16 @@ namespace Flexus.Serialization
         
         public static SerializableTree SerializationDataToSerializationTree(string serializationData)
         {
-            return new SerializableTree()
+            if (!string.IsNullOrEmpty(serializationData))
             {
-                serializableNodes = new List<SerializableNode>(JTokenToSerializationNodes(JObject.Parse(serializationData)))
-            };
+                return new SerializableTree()
+                {
+                    serializableNodes =
+                        new List<SerializableNode>(JTokenToSerializationNodes(JObject.Parse(serializationData)))
+                };
+            }
+
+            return default;
         }
 
         public static string SerializationTreeToSerializationData(SerializableTree serializableTree)

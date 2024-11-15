@@ -5,24 +5,22 @@ using Object = UnityEngine.Object;
 
 namespace Flexus.Serialization
 {
-    [JsonObject(MemberSerialization.OptIn)]
     public abstract class SerializableMonoBehaviour : MonoBehaviour, ISerializable, ISerializationCallbackReceiver
     { 
-        [SerializeField, HideInInspector, JsonIgnore]
+        [SerializeField, HideInInspector, SerializationIgnored, JsonIgnore]
         protected string _serializationData;
         
-        [SerializeField, HideInInspector, JsonIgnore] 
+        [SerializeField, HideInInspector, SerializationIgnored, JsonIgnore] 
         protected List<Object> _objects = new();
 
 #if UNITY_EDITOR
-        [SerializeField, HideInInspector, JsonIgnore]
+        [SerializeField, HideInInspector, SerializationIgnored, JsonIgnore]
         protected bool _isDirty;
         
-        [SerializeField, HideInInspector, JsonIgnore] 
+        [SerializeField, HideInInspector, SerializationIgnored, JsonIgnore] 
         protected SerializableTree _serializableTree;
 #endif
 
-        [JsonIgnore]
         public virtual string SerializationData => _serializationData;
 
         void ISerializationCallbackReceiver.OnBeforeSerialize()
@@ -37,9 +35,9 @@ namespace Flexus.Serialization
                 _serializationData = SerializationUtility.Serialize(this, _objects);
 
                 _isDirty = false;
+                
+                _serializableTree = SerializationUtility.SerializationDataToSerializationTree(_serializationData);
             }
-            
-            _serializableTree = SerializationUtility.SerializationDataToSerializationTree(_serializationData);
 #endif
         } 
 

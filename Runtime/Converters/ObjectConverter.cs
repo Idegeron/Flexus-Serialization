@@ -6,7 +6,7 @@ using Object = UnityEngine.Object;
 
 namespace Flexus.Serialization
 {
-    public class FlexusConverter : SerializationConverter
+    public class ObjectConverter : SerializationConverter
     {
         public IList<Object> InternalObjects { get; set; }
 

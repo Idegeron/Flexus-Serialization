@@ -57,6 +57,36 @@ namespace Flexus.Serialization
             
             return enumerator.Current;
         }
+
+        private static Type GetEnumerableElementType(Type type)
+        {
+            if (type.IsArray)
+            {
+                return type.GetElementType();
+            }
+
+            if (type.IsGenericType)
+            {
+                var genericTypeDefinition = type.GetGenericTypeDefinition();
+
+                if (genericTypeDefinition == typeof(List<>))
+                {
+                    var elementType = type.GetGenericArguments()[0];
+
+                    return elementType;
+                }
+            }
+            
+            return default;
+        }
+        
+        private static bool IsEnumerable(FieldInfo fieldInfo)
+        {
+            return fieldInfo.FieldType != typeof(string) &&
+                   fieldInfo.FieldType.IsArray || 
+                   fieldInfo.FieldType.IsGenericType && 
+                   fieldInfo.FieldType.GetGenericTypeDefinition() == typeof(List<>);
+        }
         
         private static bool IsSerializableType(Type type, bool allowCollections = true)
         {
@@ -145,14 +175,6 @@ namespace Flexus.Serialization
             return false;
         }
 
-        private static bool IsEnumerable(FieldInfo fieldInfo)
-        {
-            return fieldInfo.FieldType != typeof(string) &&
-                   fieldInfo.FieldType.IsArray || 
-                   fieldInfo.FieldType.IsGenericType && 
-                   fieldInfo.FieldType.GetGenericTypeDefinition() == typeof(List<>);
-        }
-        
         private static bool IsSerializableByUnity(FieldInfo fieldInfo)
         {
             if (fieldInfo.IsInitOnly)
@@ -245,7 +267,8 @@ namespace Flexus.Serialization
                     
                     if (IsEnumerable(fieldInfo))
                     {
-                        if (IsSerializableByUnity(fieldInfo) || fieldInfo.GetCustomAttribute(typeof(SerializationIncludedAttribute)) != null)
+                        if (!IsSerializableType(GetEnumerableElementType(fieldInfo.FieldType)) 
+                            || fieldInfo.GetCustomAttribute(typeof(SerializationIncludedAttribute)) != null)
                         {
                             if (fieldInfo.GetValue(value) is IEnumerable fieldValue)
                             {
@@ -259,20 +282,9 @@ namespace Flexus.Serialization
                                 }
                             }
                         }
-                        else if (ContainUnityAttributes(fieldInfo))
-                        {
-                            jArray.Add(new JObject
-                            {
-                                { "$path", new JValue($"{path}.{fieldInfo.Name}") },
-                                {
-                                    "$value",
-                                    JToken.FromObject(fieldInfo.GetValue(value),
-                                        JsonSerializer.Create(JsonSerializerSettings))
-                                }
-                            });
-                        }
                     }
-                    else if ((ContainUnityAttributes(fieldInfo) && !IsSerializableByUnity(fieldInfo)) || fieldInfo.GetCustomAttribute(typeof(SerializationIncludedAttribute)) != null)
+                    else if ((ContainUnityAttributes(fieldInfo) && !IsSerializableByUnity(fieldInfo)) 
+                             || fieldInfo.GetCustomAttribute(typeof(SerializationIncludedAttribute)) != null)
                     {
                         jArray.Add(new JObject
                         {

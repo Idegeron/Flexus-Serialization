@@ -11,14 +11,14 @@ namespace Flexus.Serialization
     [JsonObject(MemberSerialization.OptIn)]
     public abstract class SerializableStateMachineBehaviour : StateMachineBehaviour, ISerializable, ISerializationCallbackReceiver
     {
-        [SerializeField, HideInInspector, JsonIgnore]
+        [SerializeField, HideInInspector, SerializationIgnored, JsonIgnore]
         protected string _serializationData;
         
-        [SerializeField, HideInInspector, JsonIgnore] 
+        [SerializeField, HideInInspector, SerializationIgnored, JsonIgnore] 
         protected List<Object> _objects = new();
 
 #if UNITY_EDITOR
-        [SerializeField, HideInInspector, JsonIgnore]
+        [SerializeField, HideInInspector, SerializationIgnored, JsonIgnore]
         protected bool _isDirty;
 #endif
         

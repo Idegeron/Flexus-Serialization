@@ -231,44 +231,63 @@ namespace Flexus.Serialization
                    || fieldInfo.GetCustomAttribute(typeof(SerializeReference)) != null;
         }
 
-        private static void SerializeInternal<T>(T value, string path, JArray jArray)
+        private static void SerializeValue<T>(T value, string path, JArray jArray)
+        {
+            if (value != null)
+            {
+                jArray.Add(new JObject
+                {
+                    { "$path", new JValue($"{path}") },
+                    {
+                        "$value",
+                        JToken.FromObject(value, JsonSerializer.Create(JsonSerializerSettings))
+                    }
+                });
+            }
+        }
+        
+        private static void SerializeObject<T>(T value, string path, JArray jArray)
         {
             var valueType = value?.GetType() ?? typeof(T);
 
-            if (valueType.GetCustomAttribute(typeof(SerializationIgnoredAttribute)) != null)
+            var valueSerializationObjectAttribute = (SerializationObjectAttribute)valueType.GetCustomAttribute(typeof(SerializationObjectAttribute));
+
+            if (valueSerializationObjectAttribute != null)
             {
-                return;
-            }
-            
-            if (valueType.GetCustomAttribute(typeof(SerializationIncludedAttribute)) != null)
-            {
-                if (value != null)
+                switch (valueSerializationObjectAttribute.SerializationType)
                 {
-                    jArray.Add(new JObject
-                    {
-                        { "$path", new JValue($"{path}") },
-                        {
-                            "$value",
-                            JToken.FromObject(value, JsonSerializer.Create(JsonSerializerSettings))
-                        }
-                    });
+                    case SerializationType.Selective:
+                        break;
+
+                    case SerializationType.Complete:
+                       
+                        SerializeValue(value, path, jArray);
+
+                        return;
+
+                    case SerializationType.Ignore:
+                        return;
                 }
             }
-            else
-            {
-                var fieldInfos = valueType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
 
-                foreach (var fieldInfo in fieldInfos)
+            var fieldInfos = valueType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+            foreach (var fieldInfo in fieldInfos)
+            {
+                if (fieldInfo.GetCustomAttribute(typeof(SerializationIgnoredAttribute)) != null)
                 {
-                    if (fieldInfo.GetCustomAttribute(typeof(SerializationIgnoredAttribute)) != null)
+                    continue;
+                }
+                
+                if (fieldInfo.GetCustomAttribute(typeof(SerializationIncludedAttribute)) != null)
+                {
+                    SerializeValue(fieldInfo.GetValue(value), $"{path}.{fieldInfo.Name}", jArray);
+                }
+                else if (ContainUnityAttributes(fieldInfo))
+                {
+                    if (IsSerializableByUnity(fieldInfo))
                     {
-                        continue;
-                    }
-                    
-                    if (IsEnumerable(fieldInfo))
-                    {
-                        if (!IsSerializableType(GetEnumerableElementType(fieldInfo.FieldType)) 
-                            || fieldInfo.GetCustomAttribute(typeof(SerializationIncludedAttribute)) != null)
+                        if (IsEnumerable(fieldInfo))
                         {
                             if (fieldInfo.GetValue(value) is IEnumerable fieldValue)
                             {
@@ -276,25 +295,20 @@ namespace Flexus.Serialization
 
                                 foreach (var tempValue in fieldValue)
                                 {
-                                    SerializeInternal(tempValue, $"{path}.{fieldInfo.Name}.[{index}]", jArray);
+                                    SerializeObject(tempValue, $"{path}.{fieldInfo.Name}.[{index}]", jArray);
 
                                     index++;
                                 }
                             }
                         }
-                    }
-                    else if ((ContainUnityAttributes(fieldInfo) && !IsSerializableByUnity(fieldInfo)) 
-                             || fieldInfo.GetCustomAttribute(typeof(SerializationIncludedAttribute)) != null)
-                    {
-                        jArray.Add(new JObject
+                        else if (fieldInfo.FieldType.GetCustomAttribute(typeof(SerializationObjectAttribute)) != null)
                         {
-                            { "$path", new JValue($"{path}.{fieldInfo.Name}") },
-                            {
-                                "$value",
-                                JToken.FromObject(fieldInfo.GetValue(value),
-                                    JsonSerializer.Create(JsonSerializerSettings))
-                            }
-                        });
+                            SerializeObject(fieldInfo.GetValue(value), $"{path}.{fieldInfo.Name}", jArray);
+                        }
+                    }
+                    else
+                    {
+                        SerializeValue(fieldInfo.GetValue(value), $"{path}.{fieldInfo.Name}", jArray);
                     }
                 }
             }
@@ -347,7 +361,7 @@ namespace Flexus.Serialization
 
             var jArray = new JArray();
             
-            SerializeInternal(value, string.Empty, jArray);
+            SerializeObject(value, string.Empty, jArray);
 
             return jArray.ToString(Formatting.None);
         }
@@ -464,9 +478,17 @@ namespace Flexus.Serialization
                     if (jToken is JObject jObject)
                     {
                         var serializableNode = new SerializableNode(jObject["$path"]?.ToObject<string>(), string.Empty, string.Empty);
+
+                        if (jObject["$value"] is JValue jValue)
+                        {
+                            serializableNode.value = JsonConvert.SerializeObject(jValue.Value);
+                        }
+                        else
+                        {
+                            serializableNode.childrenSerializableNodes.AddRange(JTokenToSerializationNodes(jObject["$value"]));
+                        }
                         
-                        serializableNode.childrenSerializableNodes.AddRange(JTokenToSerializationNodes(jObject["$value"]));
-                        
+
                         serializationNodes.Add(serializableNode);
                     }
                 }
@@ -482,8 +504,6 @@ namespace Flexus.Serialization
 
         public static string SerializationTreeToSerializationData(SerializableTree serializableTree)
         {
-            var rootObject = new JObject();
-
             var jArray = new JArray();
 
             foreach (var serializableNode in serializableTree.serializableNodes)

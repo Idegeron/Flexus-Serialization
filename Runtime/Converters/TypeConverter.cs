@@ -26,11 +26,6 @@ namespace Flexus.Serialization
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
-            if (reader.TokenType == JsonToken.Null)
-            {
-                return null;
-            }
-
             var typeName = (string)reader.Value;
             
             if (string.IsNullOrEmpty(typeName))
@@ -38,7 +33,9 @@ namespace Flexus.Serialization
                 return null;
             }
 
-            return Type.GetType(typeName);
+            var value = Type.GetType(typeName);
+            
+            return value;
         }
     }
 }

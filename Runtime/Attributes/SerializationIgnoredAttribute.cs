@@ -2,7 +2,7 @@
 
 namespace Flexus.Serialization
 {
-    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Class | AttributeTargets.Struct)]
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public class SerializationIgnoredAttribute : Attribute
     {
         

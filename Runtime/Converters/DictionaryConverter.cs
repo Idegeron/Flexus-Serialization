@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -72,18 +73,24 @@ namespace Flexus.Serialization
         {
             var dictionaryType = value.GetType();
             var keyType = dictionaryType.GetGenericArguments()[0];
-            var valueType = dictionaryType.GetGenericArguments()[0];
+            var streamingContext = serializer.Context;
 
-            var jObject = new JObject();
-            
-            jObject.Add("$type", RemoveAssemblyDetails(dictionaryType.FullName));
+            var jObject = new JObject
+            {
+                { "$type", RemoveAssemblyDetails(dictionaryType.FullName) }
+            };
+
+            serializer.Context = new StreamingContext(streamingContext.State, new SerializationState(false));
 
             foreach (DictionaryEntry entry in (IDictionary)value)
-            { 
-                jObject.Add(keyType.IsPrimitive || keyType == typeof(string) ? entry.Key.ToString() : JsonConvert.SerializeObject(entry.Key),JsonConvert.SerializeObject(entry.Value));
+            {
+                jObject.Add(keyType.IsPrimitive || keyType == typeof(string) ? entry.Key.ToString() 
+                    : JToken.FromObject(entry.Key, serializer).ToString(Formatting.None), entry.Value != null ? JToken.FromObject(entry.Value, serializer) : JValue.CreateNull());
             }
-            
-            serializer.Serialize(writer, jObject);
+
+            serializer.Context = streamingContext;
+
+            jObject.WriteTo(writer);
         }
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
@@ -112,7 +119,7 @@ namespace Flexus.Serialization
             {
                 if (property.Name != "$type")
                 {
-                    var key = keyType.IsPrimitive || keyType == typeof(string) ? property.Name : JsonConvert.DeserializeObject(property.Name, keyType);
+                    var key = keyType.IsPrimitive || keyType == typeof(string) ? Convert.ChangeType(property.Name, keyType) : JToken.Parse(property.Name).ToObject(keyType, serializer);
                     var value = property.Value.ToObject(valueType, serializer);
 
                     if (key != null)

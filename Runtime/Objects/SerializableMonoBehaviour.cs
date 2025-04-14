@@ -5,6 +5,7 @@ using Object = UnityEngine.Object;
 
 namespace Flexus.Serialization
 {
+    [JsonObject(MemberSerialization.OptIn)]
     public abstract class SerializableMonoBehaviour : MonoBehaviour, ISerializable, ISerializationCallbackReceiver
     { 
         [SerializeField, HideInInspector, SerializationIgnored, JsonIgnore]

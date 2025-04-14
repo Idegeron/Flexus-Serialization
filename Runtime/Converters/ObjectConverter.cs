@@ -14,7 +14,7 @@ namespace Flexus.Serialization
         {
             if (value is Object unityObject)
             {
-                if (jsonWriter.WriteState != WriteState.Start)
+                if (jsonWriter.WriteState != WriteState.Start || jsonSerializer.Context.Context is SerializationState { IsRoot: false })
                 {
                     var index = InternalObjects.IndexOf(unityObject);
 

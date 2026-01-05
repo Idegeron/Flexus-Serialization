@@ -176,7 +176,7 @@ namespace Flexus.Serialization
             return false;
         }
 
-        private static bool IsSerializableByUnity(FieldInfo fieldInfo)
+        private static bool IsSerializableByUnity<T>(FieldInfo fieldInfo, T value = default)
         {
             if (fieldInfo.IsInitOnly)
             {
@@ -215,7 +215,7 @@ namespace Flexus.Serialization
                     return false;
                 }
 
-                return IsSerializableType(fieldInfo.FieldType);
+                return !fieldInfo.FieldType.IsInterface && IsSerializableType(fieldInfo.FieldType) || value != null && IsSerializableType(value.GetType());
             }
 
             if (fieldInfo.IsPublic || fieldInfo.GetCustomAttribute<SerializeField>() != null)
@@ -281,22 +281,24 @@ namespace Flexus.Serialization
                 {
                     continue;
                 }
+             
+                var fieldValue = fieldInfo.GetValue(value);
                 
                 if (fieldInfo.GetCustomAttribute(typeof(SerializationIncludedAttribute)) != null)
                 {
-                    SerializeValue(fieldInfo.GetValue(value), $"{path}.{fieldInfo.Name}", jArray);
+                    SerializeValue(fieldValue, $"{path}.{fieldInfo.Name}", jArray);
                 }
                 else if (ContainUnityAttributes(fieldInfo))
                 {
-                    if (IsSerializableByUnity(fieldInfo))
+                    if (IsSerializableByUnity(fieldInfo, fieldValue))
                     {
                         if (IsEnumerable(fieldInfo))
                         {
-                            if (fieldInfo.GetValue(value) is IEnumerable fieldValue)
+                            if (fieldValue is IEnumerable enumerable)
                             {
                                 var index = 0;
 
-                                foreach (var tempValue in fieldValue)
+                                foreach (var tempValue in enumerable)
                                 {
                                     SerializeObject(tempValue, $"{path}.{fieldInfo.Name}.[{index}]", jArray);
 
@@ -306,12 +308,12 @@ namespace Flexus.Serialization
                         }
                         else if (fieldInfo.FieldType.GetCustomAttribute(typeof(SerializationObjectAttribute)) != null)
                         {
-                            SerializeObject(fieldInfo.GetValue(value), $"{path}.{fieldInfo.Name}", jArray);
+                            SerializeObject(fieldValue, $"{path}.{fieldInfo.Name}", jArray);
                         }
                     }
                     else
                     {
-                        SerializeValue(fieldInfo.GetValue(value), $"{path}.{fieldInfo.Name}", jArray);
+                        SerializeValue(fieldValue, $"{path}.{fieldInfo.Name}", jArray);
                     }
                 }
             }

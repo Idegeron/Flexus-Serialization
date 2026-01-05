@@ -2,7 +2,7 @@
   "name": "com.flexus.serialization",
   "displayName": "FLEXUS Serialization",
   "description": "Custom serialization logic for Unity",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "unity": "2020.3",
   "author": "Idegeron (https://github.com/Idegeron)",
   "homepage": "https://github.com/Idegeron/Tri-Inspector-Flexus-Edition#readme",

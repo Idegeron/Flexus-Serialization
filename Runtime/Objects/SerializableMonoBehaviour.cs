@@ -14,7 +14,10 @@ namespace Flexus.Serialization
         [SerializeField, HideInInspector, SerializationIgnored, JsonIgnore] 
         protected List<Object> _objects = new();
 
-        [SerializeField, HideInInspector, SerializationIgnored, JsonIgnore]
+        [SerializationIgnored, JsonIgnore]
+        protected bool _isSerialized;
+
+        [SerializationIgnored, JsonIgnore]
         protected bool _isDeserialized;
 
 #if UNITY_EDITOR
@@ -29,7 +32,11 @@ namespace Flexus.Serialization
 
         void ISerializationCallbackReceiver.OnBeforeSerialize()
         {
-            OnBeforeSerialize();
+            if (!_isSerialized)
+            {
+                OnBeforeSerialize();
+                _isSerialized = true;
+            }
             
 #if UNITY_EDITOR
             if(_isDirty)
@@ -64,7 +71,11 @@ namespace Flexus.Serialization
 #endif
             }
             
-            OnAfterDeserialize();
+            if (!_isDeserialized)
+            {
+                OnAfterDeserialize();
+                _isDeserialized = true;
+            }
         }
         
         protected virtual void OnBeforeSerialize()

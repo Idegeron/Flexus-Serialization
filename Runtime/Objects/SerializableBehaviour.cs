@@ -13,6 +13,9 @@ namespace Flexus.Serialization
         [SerializeField, HideInInspector, SerializationIgnored, JsonIgnore] 
         protected List<Object> _objects = new();
 
+        [SerializeField, HideInInspector, SerializationIgnored, JsonIgnore]
+        protected bool _isDeserialized;
+
 #if UNITY_EDITOR
         [SerializeField, HideInInspector, SerializationIgnored, JsonIgnore]
         protected bool _isDirty;

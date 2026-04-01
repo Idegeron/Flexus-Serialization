@@ -7,17 +7,13 @@ namespace Flexus.Serialization
     [Serializable]
     public class SerializableNode
     {
-        public string key;
-        public string value;
-        public string type;
-        public List<SerializableNode> childrenSerializableNodes;
+        public string Path;
+        public string Value;
 
-        public SerializableNode(string key, string value, string type)
+        public SerializableNode(string path, string value)
         {
-            this.key = key;
-            this.value = value;
-            this.type = type;
-            childrenSerializableNodes = new List<SerializableNode>();
+            Path = path;
+            Value = value;
         }
     }
 }

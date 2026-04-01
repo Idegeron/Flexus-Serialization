@@ -26,7 +26,7 @@ namespace Flexus.Serialization
 
         void ISerializationCallbackReceiver.OnBeforeSerialize()
         {
-            OnBeforeSerialize();
+            PreSerialize();
             
 #if UNITY_EDITOR
             if(_isDirty)
@@ -40,36 +40,40 @@ namespace Flexus.Serialization
                 _serializableTree = SerializationUtility.SerializationDataToSerializationTree(_serializationData);
             }
 #endif
+            
+            PostSerialize();
         } 
 
         void ISerializationCallbackReceiver.OnAfterDeserialize()
         {
+            PreDeserialize();
+            
 #if UNITY_EDITOR
             _serializationData = SerializationUtility.SerializationTreeToSerializationData(_serializableTree);
 #endif
-            try
-            {
-                if (!string.IsNullOrEmpty(_serializationData))
-                {
-                    SerializationUtility.Override(_serializationData, this, _objects);
-                }
-            }
-            catch
-            {
-#if !UNITY_EDITOR
-               Debug.LogError($"Can't populate object {gameObject.name}", this);
-#endif
-            }
             
-            OnAfterDeserialize();
+            SerializationUtility.Override(_serializationData, this, _objects);
+            
+            PostDeserialize();
         }
         
-        protected virtual void OnBeforeSerialize()
+        protected virtual void PreSerialize()
         {
         }
-        
-        protected virtual void OnAfterDeserialize()
+
+        protected virtual void PostSerialize()
         {
+            
+        }
+
+        protected virtual void PreDeserialize()
+        {
+            
+        }
+        
+        protected virtual void PostDeserialize()
+        {
+            
         }
         
 #if UNITY_EDITOR
@@ -78,22 +82,13 @@ namespace Flexus.Serialization
             _isDirty = value;
         }
         
-        public void Apply(string serializationData)
+        public void SetSerializationData(string serializationData)
         {
             _serializationData = serializationData;
             
             _serializableTree = SerializationUtility.SerializationDataToSerializationTree(_serializationData);
 
-            try
-            {
-                if (!string.IsNullOrEmpty(_serializationData))
-                {
-                    SerializationUtility.Override(_serializationData, this, _objects);
-                }
-            }
-            catch
-            {
-            }
+            SerializationUtility.Override(_serializationData, this, _objects);
         }
 #endif
     }

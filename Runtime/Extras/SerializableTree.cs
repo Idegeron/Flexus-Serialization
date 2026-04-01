@@ -7,7 +7,7 @@ namespace Flexus.Serialization
     [Serializable]
     public class SerializableTree
     {
-        public List<SerializableNode> serializableNodes = new List<SerializableNode>();
+        public List<SerializableNode> SerializableNodes = new List<SerializableNode>();
     }
 }
 #endif

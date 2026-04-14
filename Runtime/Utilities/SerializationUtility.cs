@@ -278,11 +278,30 @@ namespace Flexus.Serialization
 
                     if (!typeof(Object).IsAssignableFrom(keyElementType) && !typeof(Object).IsAssignableFrom(valueElementType))
                     {
-                        foreach (DictionaryEntry dictionaryEntry in dictionary)
+                        if (valueElementType.IsInterface || valueElementType.IsAbstract)
                         {
-                            var keyToken = dictionaryEntry.Key == null ? JValue.CreateNull() : JToken.FromObject(dictionaryEntry.Key);
+                            foreach (DictionaryEntry dictionaryEntry in dictionary)
+                            {
+                                if (dictionaryEntry.Value != null)
+                                {
+                                    var keyToken = dictionaryEntry.Key == null ? JValue.CreateNull() : JToken.FromObject(dictionaryEntry.Key);
 
-                            SerializeValue(dictionaryEntry.Value, $"{path}.[{keyToken}]", jArray);
+                                    jArray.Add(new JObject
+                                    {
+                                        { "$path", new JValue($"{path}.[{keyToken}]") },
+                                        { "$value", JToken.FromObject(dictionaryEntry.Value, JsonSerializer.Create(JsonSerializerSettings)) }
+                                    });
+                                }
+                            }
+                        }
+                        else
+                        {
+                            foreach (DictionaryEntry dictionaryEntry in dictionary)
+                            {
+                                var keyToken = dictionaryEntry.Key == null ? JValue.CreateNull() : JToken.FromObject(dictionaryEntry.Key);
+
+                                SerializeValue(dictionaryEntry.Value, $"{path}.[{keyToken}]", jArray);
+                            }
                         }
                     }
                 }
@@ -292,13 +311,34 @@ namespace Flexus.Serialization
 
                     if (!typeof(Object).IsAssignableFrom(elementType))
                     {
-                        var index = 0;
-
-                        foreach (var element in list)
+                        if (elementType.IsInterface || elementType.IsAbstract)
                         {
-                            SerializeValue(element, $"{path}.[{index}]", jArray);
+                            var index = 0;
 
-                            index++;
+                            foreach (var element in list)
+                            {
+                                if (element != null)
+                                {
+                                    jArray.Add(new JObject
+                                    {
+                                        { "$path", new JValue($"{path}.[{index}]") },
+                                        { "$value", JToken.FromObject(element, JsonSerializer.Create(JsonSerializerSettings)) }
+                                    });
+                                }
+
+                                index++;
+                            }
+                        }
+                        else
+                        {
+                            var index = 0;
+
+                            foreach (var element in list)
+                            {
+                                SerializeValue(element, $"{path}.[{index}]", jArray);
+
+                                index++;
+                            }
                         }
                     }
                 }
@@ -422,7 +462,7 @@ namespace Flexus.Serialization
             }
         }
 
-        private static void OverrideObject(object value, string path, JToken jToken)
+        private static void OverrideObject(object value, string path, JToken valueToken)
         {
             var segments = path.Split('.', StringSplitOptions.RemoveEmptyEntries);
             var fieldValue = value;
@@ -440,17 +480,32 @@ namespace Flexus.Serialization
 
                         if (key != null)
                         {
-                            try
+                            if (i == segments.Length - 1)
                             {
-                                dictionary[key] = jToken.ToObject(genericArguments[1], JsonSerializer.Create(JsonSerializerSettings));
-                            
-                                fieldValue = dictionary[key];
+                                try
+                                {
+                                    dictionary[key] = valueToken.ToObject(genericArguments[1], JsonSerializer.Create(JsonSerializerSettings));
+                                    
+                                    fieldValue = dictionary[key];
+                                }
+                                catch
+                                {
+                                    fieldValue = null;
+                                }
                             }
-                            catch 
+                            else
                             {
-                                fieldValue = null;
+                                try
+                                {
+                                    dictionary[key] ??= Activator.CreateInstance(genericArguments[1]);
+
+                                    fieldValue = dictionary[key];
+                                }
+                                catch
+                                {
+                                    fieldValue = null;
+                                }
                             }
-                           
                         }
                     }
                     else if (fieldValue is IList list)
@@ -464,15 +519,31 @@ namespace Flexus.Serialization
                         
                         if (index < list.Count)
                         {
-                            try
+                            if (i == segments.Length - 1)
                             {
-                                list[index] = jToken.ToObject(fieldValue.GetType().GetGenericArguments()[0], JsonSerializer.Create(JsonSerializerSettings));
+                                try
+                                {
+                                    list[index] = valueToken.ToObject(fieldValue.GetType().GetGenericArguments()[0], JsonSerializer.Create(JsonSerializerSettings));
                             
-                                fieldValue = list[index];
+                                    fieldValue = list[index];
+                                }
+                                catch
+                                {
+                                    fieldValue = null;
+                                }
                             }
-                            catch 
+                            else
                             {
-                                fieldValue = null;
+                                try
+                                {
+                                    list[index] ??= Activator.CreateInstance(fieldValue.GetType().GetGenericArguments()[0]);
+                                        
+                                    fieldValue = list[index];
+                                }
+                                catch
+                                {
+                                    fieldValue = null;
+                                }
                             }
                         }
                     }
@@ -497,7 +568,7 @@ namespace Flexus.Serialization
                 {
                     try
                     {
-                        fieldInfo.SetValue(fieldValue, jToken.ToObject(fieldInfo.FieldType, JsonSerializer.Create(JsonSerializerSettings)));
+                        fieldInfo.SetValue(fieldValue, valueToken.ToObject(fieldInfo.FieldType, JsonSerializer.Create(JsonSerializerSettings)));
                     }
                     catch
                     {

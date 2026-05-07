@@ -257,13 +257,13 @@ namespace Flexus.Serialization
                    || fieldInfo.GetCustomAttribute(typeof(SerializeReference)) != null;
         }
 
-        private static void SerializeValue<T>(T value, string path, JArray jArray)
+        private static void SerializeValue<T>(T value, Type type, string path, JArray jArray)
         {
             if (value != null)
             {
                 var valueType = value.GetType();
 
-                if (IsPrimitive(valueType) || IsSet(valueType))
+                if (IsPrimitive(valueType) || IsSet(valueType) || IsPrimitive(type) || IsSet(type) || type == typeof(Type))
                 {
                     jArray.Add(new JObject
                     {
@@ -300,7 +300,7 @@ namespace Flexus.Serialization
                             {
                                 var keyToken = dictionaryEntry.Key == null ? JValue.CreateNull() : JToken.FromObject(dictionaryEntry.Key);
 
-                                SerializeValue(dictionaryEntry.Value, $"{path}.[{keyToken}]", jArray);
+                                SerializeValue(dictionaryEntry.Value, valueElementType,$"{path}.[{keyToken}]", jArray);
                             }
                         }
                     }
@@ -335,7 +335,7 @@ namespace Flexus.Serialization
 
                             foreach (var element in list)
                             {
-                                SerializeValue(element, $"{path}.[{index}]", jArray);
+                                SerializeValue(element, elementType, $"{path}.[{index}]", jArray);
 
                                 index++;
                             }
@@ -352,7 +352,7 @@ namespace Flexus.Serialization
 
                         foreach (var element in enumerable)
                         {
-                            SerializeValue(element, $"{path}.[{index}]", jArray);
+                            SerializeValue(element, elementType,$"{path}.[{index}]", jArray);
 
                             index++;
                         }
@@ -380,7 +380,7 @@ namespace Flexus.Serialization
 
                     case SerializationType.Complete:
 
-                        SerializeValue(value, path, jArray);
+                        SerializeValue(value, valueType, path, jArray);
 
                         return;
 
@@ -429,7 +429,7 @@ namespace Flexus.Serialization
 
                 if (fieldInfo.GetCustomAttribute(typeof(SerializationIncludedAttribute)) != null || isForceSerialization)
                 {
-                    SerializeValue(fieldValue, $"{path}.{fieldInfo.Name}", jArray);
+                    SerializeValue(fieldValue, fieldInfo.FieldType, $"{path}.{fieldInfo.Name}", jArray);
                 }
                 else if (ContainUnityAttributes(fieldInfo))
                 {
@@ -456,7 +456,7 @@ namespace Flexus.Serialization
                     }
                     else
                     {
-                        SerializeValue(fieldValue, $"{path}.{fieldInfo.Name}", jArray);
+                        SerializeValue(fieldValue, fieldInfo.FieldType, $"{path}.{fieldInfo.Name}", jArray);
                     }
                 }
             }
